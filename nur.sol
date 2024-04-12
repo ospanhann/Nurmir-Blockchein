@@ -1,59 +1,57 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IERC20 {
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(address recipient, uint256 amount) external returns (bool);
+contract Nur {
+    string public name = "nurmir";
+    string public symbol = "nur";
+    uint8 public decimals = 8;
+    uint256 public totalSupply;
+
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    address public owner;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event Mint(address indexed to, uint256 amount);
-}
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 
-contract Nur is IERC20 {
-    string public name;
-    string public symbol;
-    uint8 public decimals = 8;
-    uint256 private _totalSupply;
-    mapping(address => uint256) private _balances;
-
-    address public contractOwner;
-
-    constructor(string memory _name, string memory _symbol) {
-        name = _name;
-        symbol = _symbol;
-        contractOwner = msg.sender;
+    modifier onlyOwner() {
+        require(msg.sender == owner, "You are not the owner");
+        _;
     }
 
-    function totalSupply() external view override returns (uint256) {
-        return _totalSupply;
+    constructor() {
+        owner = msg.sender;
     }
 
-    function balanceOf(address account) external view override returns (uint256) {
-        return _balances[account];
-    }
-
-    function transfer(address recipient, uint256 amount) external override returns (bool) {
-        _transfer(msg.sender, recipient, amount);
+    function transfer(address _to, uint256 _value) public returns (bool success) {
+        require(balanceOf[msg.sender] >= _value, "Insufficient balance");
+        balanceOf[msg.sender] -= _value;
+        balanceOf[_to] += _value;
+        emit Transfer(msg.sender, _to, _value);
         return true;
     }
 
-    function mint(address _to, uint256 _amount) public {
-        require(msg.sender == contractOwner, "Only the contract owner can mint tokens");
-        require(_to != address(0), "Mint to the zero address");
-        
-        _totalSupply += _amount;
-        _balances[_to] += _amount;
-        emit Transfer(address(0), _to, _amount);
-        emit Mint(_to, _amount);
+    function approve(address _spender, uint256 _value) public returns (bool success) {
+        allowance[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
+        return true;
     }
 
-    function _transfer(address sender, address recipient, uint256 amount) private {
-        require(sender != address(0), "Transfer from the zero address");
-        require(recipient != address(0), "Transfer to the zero address");
-        require(amount <= _balances[sender], "Transfer amount exceeds balance");
-        
-        _balances[sender] -= amount;
-        _balances[recipient] += amount;
-        emit Transfer(sender, recipient, amount);
+    function transferFrom(address _from, address _to, uint256 _value) public returns (bool success) {
+        require(_value <= balanceOf[_from], "Insufficient balance");
+        require(_value <= allowance[_from][msg.sender], "Insufficient allowance");
+        balanceOf[_from] -= _value;
+        balanceOf[_to] += _value;
+        allowance[_from][msg.sender] -= _value;
+        emit Transfer(_from, _to, _value);
+        return true;
+    }
+
+    function mint(address _to, uint256 _amount) public onlyOwner {
+        require(totalSupply + _amount <= 1000000 * (10 ** uint256(decimals)), "Exceeds the maximum supply");
+        totalSupply += _amount;
+        balanceOf[_to] += _amount;
+        emit Transfer(address(0), _to, _amount);
     }
 }
